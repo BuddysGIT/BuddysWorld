@@ -1,0 +1,100 @@
+/**
+ *Submitted for verification at basescan.org on 2024-05-06
+*/
+
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.18;
+
+contract Buddycoin {
+    mapping(address => uint) public balances;
+    mapping(address => mapping(address => uint)) public allowed;
+    uint public totalSupply_ = 420000000000000 * 10 ** 18; // Offre totale de jetons
+    string public name = "Buddycoin";
+    string public symbol = "BUDYS";
+    uint public decimals = 18;
+    address public owner;
+
+    // Événements
+    event Transfer(address indexed from, address indexed to, uint amount);
+    event Approval(address indexed owner, address indexed spender, uint amount);
+    event Burn(address indexed burner, uint amount);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    // Modificateur pour limiter l'accès à certaines fonctions à l'owner
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this function");
+        _;
+    }
+
+    // Constructeur avec initialisation de la balance du contrat et du propriétaire
+    constructor() {
+        owner = msg.sender;
+        balances[msg.sender] = totalSupply_;
+    }
+
+    // Transférer la propriété du contrat à une nouvelle adresse
+    function transferOwnership(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "Invalid address");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+
+    // Récupérer la quantité totale de jetons disponibles
+    function totalSupply() public view returns (uint256) {
+        return totalSupply_;
+    }
+
+    // Récupérer la balance d'un utilisateur
+    function balanceOf(address account) public view returns(uint) {
+        return balances[account];
+    }
+
+    // Transférer les jetons en tant que détenteur
+    function transfer(address to, uint amount) public returns(bool) {
+        require(to != address(0), "Invalid recipient address"); // Vérifie que l'adresse du destinataire n'est pas une adresse invalide
+        require(amount > 0, "Amount must be greater than zero"); // Vérifie que le montant transféré est supérieur à zéro
+        require(balances[msg.sender] >= amount, "Insufficient balance"); // Vérifie si l'expéditeur a un solde suffisant
+        
+        balances[msg.sender] -= amount;
+        balances[to] += amount;
+        emit Transfer(msg.sender, to, amount);
+        return true;
+    }
+
+    // Transférer les jetons en tant que tiers (approbation préalable)
+    function transferFrom(address from, address to, uint amount) public returns(bool) {
+        require(to != address(0), "Invalid recipient address"); // Vérifie que l'adresse du destinataire n'est pas une adresse invalide
+        require(amount > 0, "Amount must be greater than zero"); // Vérifie que le montant transféré est supérieur à zéro
+        require(balances[from] >= amount, "Insufficient balance"); // Vérifie si l'expéditeur a un solde suffisant
+        require(allowed[from][msg.sender] >= amount, "Allowance too low"); // Vérifie si l'approbation est suffisante
+
+        balances[from] -= amount;
+        allowed[from][msg.sender] -= amount;
+
+        balances[to] += amount;
+        emit Transfer(from, to, amount);
+        return true;
+    }
+
+    // Approbation pour permettre à un tiers de transmettre des jetons
+    function approve(address spender, uint amount) public returns (bool) {
+        allowed[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+
+    // Récupérer la valeur accessible au délégataire
+    function allowance(address ownerAddress, address delegateAddress) public view returns(uint) {
+        return allowed[ownerAddress][delegateAddress];
+    }
+
+    // Brûler des jetons
+    function burn(uint amount) public onlyOwner {
+        require(amount > 0, "Amount must be greater than zero"); // Vérifie que le montant à brûler est supérieur à zéro
+        require(balances[msg.sender] >= amount, "Amount exceeds balance"); // Vérifie si l'expéditeur a un solde suffisant
+        
+        balances[msg.sender] -= amount;
+        totalSupply_ -= amount;
+        emit Burn(msg.sender, amount);
+    }
+}
